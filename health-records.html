@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Health Records | רשומות בריאות</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Google APIs -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://apis.google.com/js/api.js" async defer></script>
+
+  <style>
+    /* ── Design Tokens ── */
+    :root {
+      --bg:          #0b1221;
+      --surface:     #111d2e;
+      --card:        #162032;
+      --border:      #1e3048;
+      --border-soft: #243854;
+      --accent:      #38bdf8;
+      --accent-dim:  #0c4a6e;
+      --accent-glow: rgba(56,189,248,.18);
+      --success:     #34d399;
+      --warn:        #fbbf24;
+      --danger:      #f87171;
+      --text-h:      #f0f6ff;
+      --text:        #94aec8;
+      --text-dim:    #4e6a86;
+      --mono:        'IBM Plex Mono', monospace;
+      --sans:        'Heebo', sans-serif;
+      --radius:      12px;
+      --radius-sm:   8px;
+      --shadow:      0 4px 24px rgba(0,0,0,.45);
+    }
+
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      direction: rtl;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* Animated grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(56,189,248,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56,189,248,.025) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Layout ── */
+    .app-wrapper { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 20px 60px; }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 28px 0 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 32px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-icon {
+      width: 44px; height: 44px;
+      background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 0 24px rgba(56,189,248,.35);
+    }
+
+    .logo-text h1 {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--text-h);
+      letter-spacing: -.02em;
+      line-height: 1;
+    }
+
+    .logo-text span {
+      font-size: .75rem;
+      color: var(--accent);
+      font-family: var(--mono);
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+
+    /* Auth button */
+    #auth-btn {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 20px;
+      background: var(--accent-dim);
+      color: var(--accent);
+      border: 1px solid rgba(56,189,248,.3);
+      border-radius: var(--radius-sm);
+      font-family: var(--sans);
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    #auth-btn:hover { background: rgba(56,189,248,.2); box-shadow: 0 0 16px var(--accent-glow); }
+    #auth-btn.connected { background: rgba(52,211,153,.1); color: var(--success); border-color: rgba(52,211,153,.3); }
+
+    /* ── Setup Banner ── */
+    #setup-banner {
+      background: linear-gradient(135deg, rgba(251,191,36,.08), rgba(251,191,36,.03));
+      border: 1px solid rgba(251,191,36,.25);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-bottom: 24px;
+    }
+    #setup-banner h3 { color: var(--warn); font-size: 1rem; margin-bottom: 8px; display:flex; align-items:center; gap:8px; }
+    #setup-banner p, #setup-banner li { font-size: .85rem; color: var(--text); margin-bottom: 4px; }
+    #setup-banner ol { padding-right: 20px; }
+    #setup-banner code { font-family: var(--mono); font-size: .8rem; color: var(--accent); background: rgba(56,189,248,.1); padding: 2px 6px; border-radius: 4px; }
+    .setup-fields { display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+    .setup-fields input { flex: 1; min-width: 200px; padding: 9px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-h); font-family: var(--mono); font-size: .8rem; direction: ltr; }
+    .setup-fields input:focus { outline: none; border-color: var(--accent); }
+    .setup-fields button { padding: 9px 20px; background: var(--warn); color: #1a1100; border: none; border-radius: var(--radius-sm); font-family: var(--sans); font-weight: 700; font-size: .85rem; cursor: pointer; transition: opacity .2s; white-space: nowrap; }
+    .setup-fields button:hover { opacity: .85; }
+
+    /* ── Grid: form + table ── */
+    .main-grid { display: grid; grid-template-columns: 360px 1fr; gap: 24px; align-items: start; }
+    @media (max-width: 768px) { .main-grid { grid-template-columns: 1fr; } }
+
+    /* ── Card ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .card-title {
+      font-size: .7rem;
+      font-family: var(--mono);
+      color: var(--accent);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    /* ── Form ── */
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-size: .78rem; font-weight: 600; color: var(--text); margin-bottom: 6px; letter-spacing: .02em; }
+
+    input[type="date"],
+    input[type="text"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-h);
+      font-family: var(--sans);
+      font-size: .9rem;
+      transition: border-color .2s, box-shadow .2s;
+      direction: rtl;
+    }
+
+    input[type="date"] { direction: ltr; color-scheme: dark; }
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    select { appearance: none; cursor: pointer; }
+    select option { background: var(--surface); }
+    textarea { resize: vertical; min-height: 90px; }
+
+    .select-wrapper { position: relative; }
+    .select-wrapper::after {
+      content: '▾';
+      position: absolute;
+      left: 12px; top: 50%; transform: translateY(-50%);
+      color: var(--text-dim);
+      pointer-events: none;
+    }
+
+    /* Save button */
+    #save-btn {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, #0ea5e9, #38bdf8);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-family: var(--sans);
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: .02em;
+      margin-top: 6px;
+      transition: opacity .2s, box-shadow .2s;
+      box-shadow: 0 4px 16px rgba(56,189,248,.3);
+    }
+    #save-btn:hover { opacity: .9; box-shadow: 0 6px 24px rgba(56,189,248,.45); }
+    #save-btn:disabled { opacity: .4; cursor: not-allowed; }
+    #save-btn .btn-inner { display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text-h);
+      padding: 12px 24px;
+      border-radius: 100px;
+      font-size: .88rem;
+      font-weight: 500;
+      box-shadow: 0 8px 32px rgba(0,0,0,.5);
+      transition: transform .35s cubic-bezier(.34,1.56,.64,1), opacity .35s;
+      z-index: 1000;
+      opacity: 0;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    #toast.success { border-color: rgba(52,211,153,.4); color: var(--success); }
+    #toast.error   { border-color: rgba(248,113,113,.4); color: var(--danger); }
+
+    /* ── Table Card ── */
+    .table-card { overflow: hidden; }
+
+    .table-toolbar {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;
+    }
+
+    .filter-select {
+      flex: 1; min-width: 160px;
+      padding: 9px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-h);
+      font-family: var(--sans);
+      font-size: .88rem;
+      cursor: pointer;
+    }
+    .filter-select:focus { outline: none; border-color: var(--accent); }
+
+    .record-count {
+      font-family: var(--mono);
+      font-size: .75rem;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    .table-scroll { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .85rem;
+    }
+
+    thead th {
+      padding: 10px 14px;
+      text-align: right;
+      font-size: .7rem;
+      font-family: var(--mono);
+      color: var(--text-dim);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      background: var(--surface);
+    }
+    thead th.sortable { cursor: pointer; user-select: none; }
+    thead th.sortable:hover { color: var(--accent); }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background .15s;
+    }
+    tbody tr:hover { background: rgba(56,189,248,.04); }
+    tbody tr:last-child { border-bottom: none; }
+
+    td {
+      padding: 12px 14px;
+      color: var(--text);
+      vertical-align: top;
+      max-width: 220px;
+    }
+
+    td:first-child { font-family: var(--mono); font-size: .8rem; color: var(--accent); white-space: nowrap; }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 100px;
+      font-size: .72rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .badge-כללי           { background: rgba(148,174,200,.12); color: #94aec8; border: 1px solid rgba(148,174,200,.2); }
+    .badge-נשימה         { background: rgba(56,189,248,.12);  color: var(--accent); border: 1px solid rgba(56,189,248,.2); }
+    .badge-עיכול         { background: rgba(52,211,153,.12);  color: var(--success); border: 1px solid rgba(52,211,153,.2); }
+    .badge-שתן           { background: rgba(167,139,250,.12); color: #a78bfa; border: 1px solid rgba(167,139,250,.2); }
+    .badge-כולסטרול      { background: rgba(251,191,36,.12);  color: var(--warn); border: 1px solid rgba(251,191,36,.2); }
+    .badge-לחץ           { background: rgba(248,113,113,.12); color: var(--danger); border: 1px solid rgba(248,113,113,.2); }
+    .badge-שחלות         { background: rgba(244,114,182,.12); color: #f472b6; border: 1px solid rgba(244,114,182,.2); }
+
+    .empty-state {
+      padding: 48px 0;
+      text-align: center;
+      color: var(--text-dim);
+    }
+    .empty-state .icon { font-size: 2.5rem; margin-bottom: 12px; opacity: .5; }
+    .empty-state p { font-size: .9rem; }
+
+    /* ── Loading Spinner ── */
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Pulse animation for new row */
+    @keyframes rowPulse {
+      0%   { background: rgba(56,189,248,.15); }
+      100% { background: transparent; }
+    }
+    .row-new { animation: rowPulse 1.5s ease-out; }
+
+    /* ── Delete button ── */
+    .del-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-dim); font-size: 1rem; padding: 2px 4px;
+      border-radius: 4px; transition: color .2s, background .2s;
+    }
+    .del-btn:hover { color: var(--danger); background: rgba(248,113,113,.1); }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-soft); }
+  </style>
+</head>
+<body>
+<div class="app-wrapper">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🩺</div>
+      <div class="logo-text">
+        <h1>Health Records</h1>
+        <span>רשומות בריאות אישיות</span>
+      </div>
+    </div>
+    <button id="auth-btn" onclick="handleAuth()">
+      <span id="auth-icon">🔑</span>
+      <span id="auth-label">התחברות ל-Google</span>
+    </button>
+  </header>
+
+  <!-- Setup Banner -->
+  <div id="setup-banner">
+    <h3>⚙️ הגדרות ראשוניות נדרשות</h3>
+    <p>לפני השימוש באפליקציה, יש למלא את פרטי Google Sheets שלך:</p>
+    <ol style="margin: 10px 0 0 0;">
+      <li>עבור ל-<a href="https://console.cloud.google.com/" target="_blank" style="color:var(--accent)">Google Cloud Console</a> → צור פרויקט חדש</li>
+      <li>הפעל <strong style="color:var(--text-h)">Google Sheets API</strong> + <strong style="color:var(--text-h)">Google Drive API</strong></li>
+      <li>צור Credentials → OAuth 2.0 Client ID → Web Application → הוסף ל-Authorized origins את הכתובת שלך</li>
+      <li>צור Google Sheet חדש ו-<strong style="color:var(--text-h)">שמור את ה-ID שלו</strong> (מה-URL)</li>
+      <li>בשורה 1 של ה-Sheet הוסף כותרות: <code>תאריך | תחום | פרטים | שם התרופה | שם הרופא</code></li>
+    </ol>
+    <div class="setup-fields">
+      <input type="text" id="cfg-client" placeholder="Client ID (מסתיים ב- .apps.googleusercontent.com)" />
+      <input type="text" id="cfg-sheet" placeholder="Spreadsheet ID (מה-URL של ה-Sheet)" />
+      <button onclick="saveConfig()">💾 שמור הגדרות</button>
+    </div>
+  </div>
+
+  <!-- Main Grid -->
+  <div class="main-grid">
+
+    <!-- Form Card -->
+    <div class="card">
+      <div class="card-title">📋 הוספת רשומה</div>
+
+      <div class="form-group">
+        <label for="f-date">📅 תאריך</label>
+        <input type="date" id="f-date" />
+      </div>
+
+      <div class="form-group">
+        <label for="f-domain">🏥 תחום</label>
+        <div class="select-wrapper">
+          <select id="f-domain">
+            <option value="">— בחר תחום —</option>
+            <option value="כללי">כללי</option>
+            <option value="מערכת נשימה">מערכת נשימה</option>
+            <option value="מערכת עיכול">מערכת עיכול</option>
+            <option value="דרכי שתן">דרכי שתן</option>
+            <option value="כולסטרול">כולסטרול</option>
+            <option value="לחץ דם">לחץ דם</option>
+            <option value="שחלות">שחלות</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="f-details">📝 פרטים</label>
+        <textarea id="f-details" placeholder="תאר את הביקור, הסימפטומים, הממצאים..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="f-medicine">💊 שם התרופה</label>
+        <input type="text" id="f-medicine" placeholder="הזן שם תרופה (אם רלוונטי)" />
+      </div>
+
+      <div class="form-group">
+        <label for="f-doctor">👨‍⚕️ שם הרופא</label>
+        <input type="text" id="f-doctor" placeholder="ד״ר..." />
+      </div>
+
+      <button id="save-btn" onclick="saveRecord()">
+        <div class="btn-inner">
+          <span>💾</span>
+          <span>שמור רשומה</span>
+        </div>
+      </button>
+    </div>
+
+    <!-- Table Card -->
+    <div class="card table-card">
+      <div class="card-title">📊 רשומות קיימות</div>
+
+      <div class="table-toolbar">
+        <div class="select-wrapper" style="flex:1;min-width:160px;">
+          <select class="filter-select" id="filter-domain" onchange="applyFilter()">
+            <option value="">🔍 כל התחומים</option>
+            <option value="כללי">כללי</option>
+            <option value="מערכת נשימה">מערכת נשימה</option>
+            <option value="מערכת עיכול">מערכת עיכול</option>
+            <option value="דרכי שתן">דרכי שתן</option>
+            <option value="כולסטרול">כולסטרול</option>
+            <option value="לחץ דם">לחץ דם</option>
+            <option value="שחלות">שחלות</option>
+          </select>
+        </div>
+        <button onclick="loadRecords()" style="padding:9px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:.85rem;cursor:pointer;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">🔄 רענן</button>
+        <span class="record-count" id="record-count">— רשומות</span>
+      </div>
+
+      <div class="table-scroll">
+        <table id="records-table">
+          <thead>
+            <tr>
+              <th class="sortable" onclick="sortBy('date')">תאריך ↕</th>
+              <th>תחום</th>
+              <th>פרטים</th>
+              <th>תרופה</th>
+              <th>רופא</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="records-body">
+            <tr>
+              <td colspan="6">
+                <div class="empty-state">
+                  <div class="icon">🔐</div>
+                  <p>התחבר ל-Google כדי לטעון את הרשומות</p>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /main-grid -->
+</div><!-- /app-wrapper -->
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+/* ─────────────────────────────────────────────
+   CONFIG & STATE
+───────────────────────────────────────────── */
+const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
+const SHEET_TAB = 'Sheet1';
+
+let CLIENT_ID = localStorage.getItem('hr_client_id') || '';
+let SPREADSHEET_ID = localStorage.getItem('hr_sheet_id') || '';
+let accessToken = null;
+let allRecords = [];
+let sortDir = -1; // -1 = newest first
+
+/* ─────────────────────────────────────────────
+   INIT
+───────────────────────────────────────────── */
+window.onload = () => {
+  // Pre-fill config if saved
+  document.getElementById('cfg-client').value = CLIENT_ID;
+  document.getElementById('cfg-sheet').value = SPREADSHEET_ID;
+
+  // Hide setup banner if already configured
+  if (CLIENT_ID && SPREADSHEET_ID) {
+    document.getElementById('setup-banner').style.display = 'none';
+  }
+
+  // Set today's date
+  document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+
+  // Init Google Identity Services
+  if (CLIENT_ID) initGIS();
+};
+
+function saveConfig() {
+  CLIENT_ID = document.getElementById('cfg-client').value.trim();
+  SPREADSHEET_ID = document.getElementById('cfg-sheet').value.trim();
+  localStorage.setItem('hr_client_id', CLIENT_ID);
+  localStorage.setItem('hr_sheet_id', SPREADSHEET_ID);
+  document.getElementById('setup-banner').style.display = 'none';
+  initGIS();
+  toast('✅ ההגדרות נשמרו בהצלחה', 'success');
+}
+
+/* ─────────────────────────────────────────────
+   GOOGLE AUTH (GIS Token Model)
+───────────────────────────────────────────── */
+let tokenClient;
+
+function initGIS() {
+  if (!CLIENT_ID) return;
+  google.accounts.id.initialize({ client_id: CLIENT_ID });
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: (resp) => {
+      if (resp.error) { toast('❌ שגיאת אימות: ' + resp.error, 'error'); return; }
+      accessToken = resp.access_token;
+      setConnected(true);
+      loadRecords();
+    }
+  });
+}
+
+function handleAuth() {
+  if (!CLIENT_ID) {
+    document.getElementById('setup-banner').style.display = '';
+    document.getElementById('cfg-client').focus();
+    toast('⚠️ נא להגדיר Client ID תחילה', 'error');
+    return;
+  }
+  if (accessToken) {
+    // Sign out
+    google.accounts.oauth2.revoke(accessToken, () => {
+      accessToken = null;
+      allRecords = [];
+      setConnected(false);
+      renderTable([]);
+    });
+  } else {
+    tokenClient.requestAccessToken({ prompt: 'consent' });
+  }
+}
+
+function setConnected(on) {
+  const btn = document.getElementById('auth-btn');
+  document.getElementById('auth-icon').textContent = on ? '✅' : '🔑';
+  document.getElementById('auth-label').textContent = on ? 'מחובר — התנתק' : 'התחברות ל-Google';
+  btn.classList.toggle('connected', on);
+}
+
+/* ─────────────────────────────────────────────
+   SHEETS API
+───────────────────────────────────────────── */
+async function sheetsRequest(endpoint, method = 'GET', body = null) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}${endpoint}`;
+  const opts = {
+    method,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error?.message || 'Sheets API error');
+  }
+  return res.json();
+}
+
+async function ensureHeaders() {
+  // Check if row 1 has our headers; if not, write them
+  try {
+    const data = await sheetsRequest(`/values/${SHEET_TAB}!A1:E1`);
+    if (!data.values || data.values[0]?.[0] !== 'תאריך') {
+      await sheetsRequest(`/values/${SHEET_TAB}!A1:E1?valueInputOption=RAW`, 'PUT', {
+        values: [['תאריך', 'תחום', 'פרטים', 'שם התרופה', 'שם הרופא']]
+      });
+    }
+  } catch (e) { /* table might be empty */ }
+}
+
+/* ─────────────────────────────────────────────
+   LOAD RECORDS
+───────────────────────────────────────────── */
+async function loadRecords() {
+  if (!accessToken || !SPREADSHEET_ID) return;
+  try {
+    const data = await sheetsRequest(`/values/${SHEET_TAB}!A:E`);
+    const rows = data.values || [];
+    // Skip header row (row 0)
+    allRecords = rows.slice(1).map((r, i) => ({
+      row: i + 2, // 1-indexed sheet row (header is row 1)
+      date: r[0] || '',
+      domain: r[1] || '',
+      details: r[2] || '',
+      medicine: r[3] || '',
+      doctor: r[4] || ''
+    }));
+    applyFilter();
+  } catch (e) {
+    toast('❌ שגיאה בטעינת נתונים: ' + e.message, 'error');
+  }
+}
+
+/* ─────────────────────────────────────────────
+   SAVE RECORD
+───────────────────────────────────────────── */
+async function saveRecord() {
+  if (!accessToken) { toast('⚠️ נא להתחבר ל-Google תחילה', 'error'); return; }
+  if (!SPREADSHEET_ID) { toast('⚠️ נא להגדיר Spreadsheet ID', 'error'); return; }
+
+  const date = document.getElementById('f-date').value;
+  const domain = document.getElementById('f-domain').value;
+  const details = document.getElementById('f-details').value.trim();
+  const medicine = document.getElementById('f-medicine').value.trim();
+  const doctor = document.getElementById('f-doctor').value.trim();
+
+  if (!date) { toast('⚠️ נא לבחור תאריך', 'error'); return; }
+  if (!domain) { toast('⚠️ נא לבחור תחום', 'error'); return; }
+
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.innerHTML = `<div class="btn-inner"><span class="spinner"></span><span>שומר...</span></div>`;
+
+  try {
+    await ensureHeaders();
+    await sheetsRequest(`/values/${SHEET_TAB}!A:E:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, 'POST', {
+      values: [[date, domain, details, medicine, doctor]]
+    });
+
+    // Reset form (keep date)
+    document.getElementById('f-domain').value = '';
+    document.getElementById('f-details').value = '';
+    document.getElementById('f-medicine').value = '';
+    document.getElementById('f-doctor').value = '';
+
+    toast('✅ הרשומה נשמרה בהצלחה', 'success');
+    await loadRecords();
+  } catch (e) {
+    toast('❌ שגיאה בשמירה: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<div class="btn-inner"><span>💾</span><span>שמור רשומה</span></div>`;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   DELETE RECORD
+───────────────────────────────────────────── */
+async function deleteRecord(rowIndex, sheetRow) {
+  if (!confirm('האם למחוק רשומה זו?')) return;
+  try {
+    // Get spreadsheet metadata to find sheet ID
+    const meta = await sheetsRequest('');
+    const sheetId = meta.sheets.find(s => s.properties.title === SHEET_TAB)?.properties.sheetId ?? 0;
+    await sheetsRequest(':batchUpdate', 'POST', {
+      requests: [{
+        deleteDimension: {
+          range: { sheetId, dimension: 'ROWS', startIndex: sheetRow - 1, endIndex: sheetRow }
+        }
+      }]
+    });
+    toast('🗑️ הרשומה נמחקה', 'success');
+    await loadRecords();
+  } catch (e) {
+    toast('❌ שגיאה במחיקה: ' + e.message, 'error');
+  }
+}
+
+/* ─────────────────────────────────────────────
+   FILTER & SORT
+───────────────────────────────────────────── */
+function applyFilter() {
+  const domain = document.getElementById('filter-domain').value;
+  let filtered = domain ? allRecords.filter(r => r.domain === domain) : [...allRecords];
+  filtered.sort((a, b) => sortDir * compareDates(a.date, b.date));
+  renderTable(filtered);
+  document.getElementById('record-count').textContent = `${filtered.length} רשומות`;
+}
+
+function sortBy(field) {
+  sortDir *= -1;
+  applyFilter();
+}
+
+function compareDates(a, b) {
+  // Handle DD/MM/YYYY and YYYY-MM-DD
+  const parse = s => {
+    if (!s) return 0;
+    const parts = s.split('/');
+    if (parts.length === 3) return new Date(parts[2], parts[1]-1, parts[0]);
+    return new Date(s);
+  };
+  return parse(b) - parse(a);
+}
+
+/* ─────────────────────────────────────────────
+   RENDER TABLE
+───────────────────────────────────────────── */
+function badgeClass(domain) {
+  if (domain.includes('נשימה')) return 'badge-נשימה';
+  if (domain.includes('עיכול')) return 'badge-עיכול';
+  if (domain.includes('שתן'))  return 'badge-שתן';
+  if (domain.includes('כולסטרול')) return 'badge-כולסטרול';
+  if (domain.includes('לחץ'))  return 'badge-לחץ';
+  if (domain.includes('שחלות')) return 'badge-שחלות';
+  return 'badge-כללי';
+}
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderTable(records) {
+  const tbody = document.getElementById('records-body');
+  if (!records.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">
+      <div class="icon">📂</div>
+      <p>אין רשומות להצגה</p>
+    </div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = records.map((r, i) => `
+    <tr class="${i === 0 ? 'row-new' : ''}">
+      <td>${esc(formatDate(r.date))}</td>
+      <td><span class="badge ${badgeClass(r.domain)}">${esc(r.domain)}</span></td>
+      <td style="max-width:260px;white-space:pre-wrap;word-break:break-word">${esc(r.details)}</td>
+      <td>${esc(r.medicine)}</td>
+      <td>${esc(r.doctor)}</td>
+      <td><button class="del-btn" onclick="deleteRecord(${i}, ${r.row})" title="מחק">🗑</button></td>
+    </tr>
+  `).join('');
+}
+
+function formatDate(d) {
+  if (!d) return '';
+  // Convert YYYY-MM-DD → DD/MM/YYYY
+  const m = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : d;
+}
+
+/* ─────────────────────────────────────────────
+   TOAST
+───────────────────────────────────────────── */
+let toastTimer;
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ''; }, 3200);
+}
+</script>
+</body>
+</html>
